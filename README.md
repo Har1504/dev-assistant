@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Developer Assistant AI
+
+This is a Developer Assistant AI with a Next.js frontend and an Express.js backend that uses the Google Generative AI API.
+
+## Project Structure
+
+- `dev-assistant` (root): The Next.js frontend application.
+- `mcp-server`: The Express.js backend server.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js and npm installed.
+- A Google Generative AI API key.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1.  **Clone the repository:**
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+    ```bash
+    git clone <repository-url>
+    cd dev-assistant
+    ```
 
-## Learn More
+2.  **Install dependencies for the frontend:**
 
-To learn more about Next.js, take a look at the following resources:
+    ```bash
+    npm install
+    ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3.  **Install dependencies for the backend:**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+    ```bash
+    npm install --prefix mcp-server
+    ```
 
-## Deploy on Vercel
+4.  **Create a `.env` file in the `mcp-server` directory and add your Gemini API key:**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+    ```
+    GEMINI_API_KEY=your-api-key
+    ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Running the Application
+
+1.  **Start the backend server:**
+
+    ```bash
+    npm run dev:mcp
+    ```
+
+    The server will be running on `http://localhost:3001`.
+
+2.  **Start the frontend application:**
+
+    ```bash
+    npm run dev
+    ```
+
+    The application will be running on `http://localhost:3000`.
+
+## Available Scripts
+
+### Frontend (`dev-assistant`)
+
+- `npm run dev`: Starts the Next.js development server.
+- `npm run build`: Builds the Next.js application for production.
+- `npm run start`: Starts the Next.js production server.
+- `npm run lint`: Lints the Next.js application.
+
+### Backend (`mcp-server`)
+
+- `npm run dev --prefix mcp-server`: Starts the Express.js development server.
+- `npm run build --prefix mcp-server`: Compiles the TypeScript code to JavaScript.
