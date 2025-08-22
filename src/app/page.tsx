@@ -1,16 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { Bot, User, Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Message {
   role: "user" | "ai";
@@ -19,17 +15,31 @@ interface Message {
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: "ai", content: "Hello! How can I help you today?" },
+    { role: "ai", content: "Hello! How can I help you develop today?" },
   ]);
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || isLoading) return;
 
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    setIsLoading(true);
+
+    // Add a placeholder for the AI's response
+    setMessages((prev) => [...prev, { role: "ai", content: "" }]);
 
     try {
       const response = await fetch("http://localhost:3001/api/mcp", {
@@ -40,71 +50,130 @@ export default function Home() {
         body: JSON.stringify({ message: input }),
       });
 
-      const data = await response.json();
-      const aiMessage: Message = { role: "ai", content: data.message };
-      setMessages((prev) => [...prev, aiMessage]);
+      if (!response.body) {
+        throw new Error("No response body");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+        const chunk = decoder.decode(value, { stream: true });
+        
+        setMessages((prev) => {
+          const lastMessage = prev[prev.length - 1];
+          if (lastMessage.role === "ai") {
+            return [
+              ...prev.slice(0, -1),
+              { ...lastMessage, content: lastMessage.content + chunk },
+            ];
+          }
+          return prev;
+        });
+      }
     } catch (error) {
       console.error("Error fetching from MCP server:", error);
-      const errorMessage: Message = {
-        role: "ai",
-        content: "Sorry, I'm having trouble connecting to the server.",
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage.role === "ai") {
+          return [
+            ...prev.slice(0, -1),
+            { ...lastMessage, content: "Sorry, I'm having trouble connecting to the server." },
+          ];
+        }
+        return prev;
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-background">
-      <Card className="w-[800px] h-[90vh] grid grid-rows-[auto_1fr_auto]">
-        <CardHeader>
-          <CardTitle>Developer AI Assistant</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-full w-full pr-4">
-            <div className="space-y-4">
-              {messages.map((msg, index) => (
-                <div
-                  key={index}
-                  className={`flex items-start gap-4 ${
-                    msg.role === "user" ? "justify-end" : ""
-                  }`}
-                >
-                  {msg.role === "ai" && (
-                    <div className="rounded-full bg-primary text-primary-foreground w-8 h-8 flex items-center justify-center">
-                      AI
-                    </div>
-                  )}
-                  <div
-                    className={`p-4 rounded-lg max-w-[75%] ${
-                      msg.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    }`}
-                  >
-                    <p>{msg.content}</p>
-                  </div>
-                  {msg.role === "user" && (
-                    <div className="rounded-full bg-secondary text-secondary-foreground w-8 h-8 flex items-center justify-center">
-                      You
-                    </div>
-                  )}
-                </div>
-              ))}
+    <div className="flex flex-col h-screen bg-gray-800 text-white">
+      <header className="bg-gray-900 p-4 shadow-md">
+        <h1 className="text-xl font-bold">Developer AI Assistant</h1>
+      </header>
+      
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            className={`flex items-start gap-4 ${msg.role === "user" ? "justify-end" : ""}`}
+          >
+            {msg.role === "ai" && (
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
+                <Bot size={24} />
+              </div>
+            )}
+            <div
+              className={`p-4 rounded-lg max-w-2xl prose prose-invert prose-p:m-0 prose-pre:m-0 prose-pre:p-0 ${msg.role === "user" ? "bg-blue-600" : "bg-gray-700"}`}
+            >
+              <ReactMarkdown
+                components={{
+                  code({ node, inline, className, children, ...props }) {
+                    const match = /language-(\w+)/.exec(className || "");
+                    return !inline && match ? (
+                      <SyntaxHighlighter
+                        style={vscDarkPlus}
+                        language={match[1]}
+                        PreTag="div"
+                        {...props}
+                      >
+                        {String(children).replace(/\n$/, "")}
+                      </SyntaxHighlighter>
+                    ) : (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                }}
+              >
+                {msg.content}
+              </ReactMarkdown>
             </div>
-          </ScrollArea>
-        </CardContent>
-        <CardFooter>
-          <form onSubmit={handleSubmit} className="flex w-full items-center space-x-2">
-            <Input
-              type="text"
-              placeholder="Type your message here..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-            />
-            <Button type="submit">Send</Button>
-          </form>
-        </CardFooter>
-      </Card>
+            {msg.role === "user" && (
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center">
+                <User size={24} />
+              </div>
+            )}
+          </div>
+        ))}
+        {isLoading && (
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
+              <Bot size={24} />
+            </div>
+            <div className="p-4 rounded-lg bg-gray-700">
+              <div className="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <footer className="p-4 bg-gray-900">
+        <form onSubmit={handleSubmit} className="flex items-center space-x-4">
+          <Input
+            type="text"
+            placeholder="Type your message here..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            className="flex-1 bg-gray-700 border-gray-600 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isLoading}
+          />
+          <Button type="submit" className="bg-blue-600 hover:bg-blue-700 rounded-lg p-2" disabled={isLoading}>
+            <Send size={24} />
+          </Button>
+        </form>
+      </footer>
     </div>
   );
 }
